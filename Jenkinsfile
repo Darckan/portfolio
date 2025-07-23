@@ -71,7 +71,7 @@ pipeline {
                     sh '''
                     echo "🔁 Switching NGINX proxy to Green..."
                     ssh -o StrictHostKeyChecking=no user@$SSH_IP '
-                        docker exec nginx sh -c "sed -i s/blue/green/g /etc/nginx/nginx.conf && nginx -s reload"
+                        docker exec nginx sh -c "sed s/blue/green/g /etc/nginx/nginx.conf && nginx -s reload"
                     '
                     '''
                 }
@@ -89,7 +89,7 @@ pipeline {
                     ssh -o StrictHostKeyChecking=no user@$SSH_IP '
                         cd /home/user/project-blue &&
                         docker-compose up -p blue -d --remove-orphans &&
-                        docker exec nginx sh -c "sed -i s/green/blue/g /etc/nginx/nginx.conf && nginx -s reload"
+                        docker exec nginx sh -c "sed s/green/blue/g /etc/nginx/nginx.conf && nginx -s reload"
                     '
                     '''
                 }
