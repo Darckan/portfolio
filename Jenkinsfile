@@ -3,7 +3,8 @@ pipeline {
 
     environment {
         BACKUP_DIR = "/home/devops/backups"
-        DB_PASS = credentials('mysql-root-pass') // 💡 Opcional: usa Jenkins Credential para la DB
+        DB_PASS = credentials('mysql-root-pass')
+         SSH_IP = credentials('server-ip')
     }
 
     stages {
@@ -18,7 +19,7 @@ pipeline {
                 sshagent (credentials: ['server-ssh-key']) {
                     sh '''
                     echo "📦 Backing up database..."
-                    ssh -o StrictHostKeyChecking=no user@${server-ip} "
+                    ssh -o StrictHostKeyChecking=no user@$SSH_IP "
                         mkdir -p $BACKUP_DIR &&
                         docker exec mysql mysqldump -uroot -p$DB_PASS --all-databases > $BACKUP_DIR/backup-$(date +%F-%H%M).sql
                     "
@@ -32,7 +33,7 @@ pipeline {
                 sshagent (credentials: ['server-ssh-key']) {
                     sh '''
                     echo "🚀 Deploying to Green..."
-                    ssh -o StrictHostKeyChecking=no user@${server-ip} '
+                    ssh -o StrictHostKeyChecking=no user@$SSH_IP '
                         if [ ! -d /home/user/project-green ]; then
                             git clone https://github.com/Darckan/portfolio.git /home/user/project-green
                         fi
@@ -52,7 +53,7 @@ pipeline {
                 sshagent (credentials: ['server-ssh-key']) {
                     script {
                         def result = sh(script: """
-                            ssh -o StrictHostKeyChecking=no user@${server-ip} \
+                            ssh -o StrictHostKeyChecking=no user@$SSH_IP \
                             'curl -fsS http://localhost || exit 1'
                         """, returnStatus: true)
 
@@ -69,7 +70,7 @@ pipeline {
                 sshagent (credentials: ['server-ssh-key']) {
                     sh '''
                     echo "🔁 Switching NGINX proxy to Green..."
-                    ssh -o StrictHostKeyChecking=no user@${server-ip} '
+                    ssh -o StrictHostKeyChecking=no user@$SSH_IP '
                         docker exec nginx sh -c "sed -i s/blue/green/g /etc/nginx/nginx.conf && nginx -s reload"
                     '
                     '''
@@ -85,7 +86,7 @@ pipeline {
                 sshagent (credentials: ['server-ssh-key']) {
                     sh '''
                     echo "⏪ Rolling back to Blue..."
-                    ssh -o StrictHostKeyChecking=no user@${server-ip} '
+                    ssh -o StrictHostKeyChecking=no user@$SSH_IP '
                         cd /home/user/project-blue &&
                         docker compose up -d --remove-orphans &&
                         docker exec nginx sh -c "sed -i s/green/blue/g /etc/nginx/nginx.conf && nginx -s reload"
