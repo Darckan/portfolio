@@ -41,7 +41,7 @@ pipeline {
                         git reset --hard &&
                         git pull origin master &&
                         docker-compose pull &&
-                        docker-compose up -d --remove-orphans
+                        docker-compose up -p green -d --remove-orphans
                     '
                     '''
                 }
@@ -88,7 +88,7 @@ pipeline {
                     echo "⏪ Rolling back to Blue..."
                     ssh -o StrictHostKeyChecking=no user@$SSH_IP '
                         cd /home/user/project-blue &&
-                        docker-compose up -d --remove-orphans &&
+                        docker-compose up -p blue -d --remove-orphans &&
                         docker exec nginx sh -c "sed -i s/green/blue/g /etc/nginx/nginx.conf && nginx -s reload"
                     '
                     '''
