@@ -3,6 +3,7 @@ pipeline {
 
     environment {
         BACKUP_DIR = "/home/devops/backups"
+        DB_PASS = credentials('mysql-root-pass') // 💡 Opcional: usa Jenkins Credential para la DB
     }
 
     stages {
@@ -14,13 +15,10 @@ pipeline {
 
         stage('Backup Database') {
             steps {
-                withCredentials([
-                    sshUserPrivateKey(credentialsId: 'server-ssh-key', keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER'),
-                    string(credentialsId: 'server-ip', variable: 'SSH_HOST')
-                ]) {
+                sshagent (credentials: ['server-ssh-key']) {
                     sh '''
                     echo "📦 Backing up database..."
-                    ssh -i $SSH_KEY -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST "
+                    ssh -o StrictHostKeyChecking=no user@${server-ip} "
                         mkdir -p $BACKUP_DIR &&
                         docker exec mysql mysqldump -uroot -p$DB_PASS --all-databases > $BACKUP_DIR/backup-$(date +%F-%H%M).sql
                     "
@@ -31,18 +29,14 @@ pipeline {
 
         stage('Deploy to Green') {
             steps {
-                withCredentials([
-                    sshUserPrivateKey(credentialsId: 'server-ssh-key', keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER'),
-                    string(credentialsId: 'server-ip', variable: 'SSH_HOST')
-                ]) {
+                sshagent (credentials: ['server-ssh-key']) {
                     sh '''
                     echo "🚀 Deploying to Green..."
-                    ssh -i $SSH_KEY -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST '
-                        # Clone repo if it doesn’t exist
-                        if [ ! -d /home/$SSH_USER/project-green ]; then
-                            git clone https://github.com/Darckan/portfolio.git /home/$SSH_USER/project-green
+                    ssh -o StrictHostKeyChecking=no user@${server-ip} '
+                        if [ ! -d /home/user/project-green ]; then
+                            git clone https://github.com/Darckan/portfolio.git /home/user/project-green
                         fi
-                        cd /home/$SSH_USER/project-green &&
+                        cd /home/user/project-green &&
                         git reset --hard &&
                         git pull origin main &&
                         docker compose pull &&
@@ -55,13 +49,10 @@ pipeline {
 
         stage('Health Check') {
             steps {
-                withCredentials([
-                    sshUserPrivateKey(credentialsId: 'server-ssh-key', keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER'),
-                    string(credentialsId: 'server-ip', variable: 'SSH_HOST')
-                ]) {
+                sshagent (credentials: ['server-ssh-key']) {
                     script {
                         def result = sh(script: """
-                            ssh -i $SSH_KEY -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST \
+                            ssh -o StrictHostKeyChecking=no user@${server-ip} \
                             'curl -fsS http://localhost || exit 1'
                         """, returnStatus: true)
 
@@ -75,13 +66,10 @@ pipeline {
 
         stage('Switch Proxy') {
             steps {
-                withCredentials([
-                    sshUserPrivateKey(credentialsId: 'server-ssh-key', keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER'),
-                    string(credentialsId: 'server-ip', variable: 'SSH_HOST')
-                ]) {
+                sshagent (credentials: ['server-ssh-key']) {
                     sh '''
                     echo "🔁 Switching NGINX proxy to Green..."
-                    ssh -i $SSH_KEY -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST '
+                    ssh -o StrictHostKeyChecking=no user@${server-ip} '
                         docker exec nginx sh -c "sed -i s/blue/green/g /etc/nginx/nginx.conf && nginx -s reload"
                     '
                     '''
@@ -94,14 +82,11 @@ pipeline {
                 expression { currentBuild.result == 'FAILURE' }
             }
             steps {
-                withCredentials([
-                    sshUserPrivateKey(credentialsId: 'server-ssh-key', keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER'),
-                    string(credentialsId: 'server-ip', variable: 'SSH_HOST')
-                ]) {
+                sshagent (credentials: ['server-ssh-key']) {
                     sh '''
                     echo "⏪ Rolling back to Blue..."
-                    ssh -i $SSH_KEY -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST '
-                        cd /home/$SSH_USER/project-blue &&
+                    ssh -o StrictHostKeyChecking=no user@${server-ip} '
+                        cd /home/user/project-blue &&
                         docker compose up -d --remove-orphans &&
                         docker exec nginx sh -c "sed -i s/green/blue/g /etc/nginx/nginx.conf && nginx -s reload"
                     '
