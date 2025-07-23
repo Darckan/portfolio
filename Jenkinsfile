@@ -39,7 +39,7 @@ pipeline {
                         fi
                         cd /home/user/project-green &&
                         git reset --hard &&
-                        git pull origin main &&
+                        git pull origin master &&
                         docker compose pull &&
                         docker compose up -d --remove-orphans
                     '
