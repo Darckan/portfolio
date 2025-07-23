@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        BACKUP_DIR = "/home/devops/backups"
+        BACKUP_DIR = "/home/user/backups"
         DB_PASS = credentials('mysql-root-pass')
          SSH_IP = credentials('server-ip')
     }
@@ -20,7 +20,7 @@ pipeline {
                     sh '''
                     echo "📦 Backing up database..."
                     ssh -o StrictHostKeyChecking=no user@$SSH_IP "
-                        mkdir -p $BACKUP_DIR &&
+                        sudo mkdir -p $BACKUP_DIR &&
                         docker exec mysql mysqldump -uroot -p$DB_PASS --all-databases > $BACKUP_DIR/backup-$(date +%F-%H%M).sql
                     "
                     '''
