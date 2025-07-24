@@ -1,5 +1,5 @@
 # Build Stage
-FROM node:22-alpine as builder
+FROM node:24-alpine as builder
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
@@ -7,7 +7,7 @@ COPY . .
 RUN npm run build
 
 # Runtime Stage
-FROM node:22-alpine AS runner
+FROM node:24-alpine AS runner
 RUN apk add --no-cache curl
 WORKDIR /app
 ENV NODE_ENV=production
