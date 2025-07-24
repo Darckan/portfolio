@@ -5,12 +5,12 @@ pipeline {
     SSH_USER = 'user'
     SSH_HOST = credentials('server-ip')
     REMOTE_DIR = '/home/user/project'
-    HEALTHCHECK_URL = 'http://localhost/api/test'
     CLUSTER_NAME = 'devops-cluster'
-    BACKEND_DEPLOYMENT = 'backend'
-    NAMESPACE = 'default'
+    NAMESPACE = 'dev'
     MAX_RETRIES = 10
     INTERVAL = 10
+    // Puedes tener múltiples URLs separados por coma si lo deseas
+    HEALTHCHECK_URLS = 'http://localhost:3000/test,http://localhost' 
   }
 
   stages {
@@ -26,7 +26,8 @@ pipeline {
           sh '''
           echo "📦 Ejecutando build y despliegue remoto..."
 
-          ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST bash -c "'
+          ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST bash -c "''
+            set -e
             cd $REMOTE_DIR
 
             echo 🔨 Construyendo imágenes Docker...
@@ -43,7 +44,7 @@ pipeline {
             kubectl apply -f infra/k8s/backend/
             kubectl apply -f infra/k8s/frontend/
             kubectl apply -f infra/k8s/ingress/
-          '"
+          ''"
           '''
         }
       }
@@ -53,28 +54,31 @@ pipeline {
       steps {
         sshagent (credentials: ['server-ssh-key']) {
           script {
-            echo "🔍 Verificando salud del backend remoto..."
+            echo "🔍 Verificando salud remota de todos los servicios..."
+            def urls = HEALTHCHECK_URLS.split(',')
 
-            def success = false
+            for (url in urls) {
+              def success = false
 
-            for (int i = 0; i < MAX_RETRIES.toInteger(); i++) {
-              def code = sh(
-                script: """ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST "curl -sf -o /dev/null -w '%{http_code}' $HEALTHCHECK_URL" """,
-                returnStdout: true
-              ).trim()
+              for (int i = 0; i < MAX_RETRIES.toInteger(); i++) {
+                def code = sh(
+                  script: """ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST "curl -sf -o /dev/null -w '%{http_code}' $url" """,
+                  returnStdout: true
+                ).trim()
 
-              if (code == '200') {
-                echo "✅ Backend saludable (HTTP 200)"
-                success = true
-                break
-              } else {
-                echo "❌ Intento #$i: HTTP $code"
-                sleep(INTERVAL.toInteger())
+                if (code == '200') {
+                  echo "✅ Servicio saludable (${url})"
+                  success = true
+                  break
+                } else {
+                  echo "❌ Intento #$i: $url → HTTP $code"
+                  sleep(INTERVAL.toInteger())
+                }
               }
-            }
 
-            if (!success) {
-              error("⛔ Healthcheck fallido. Rollback necesario.")
+              if (!success) {
+                error("⛔ Healthcheck fallido para ${url}. Rollback necesario.")
+              }
             }
           }
         }
@@ -83,7 +87,7 @@ pipeline {
 
     stage('Finalizar') {
       steps {
-        echo "🎉 Despliegue en Kubernetes verificado correctamente."
+        echo "🎉 Todos los servicios verificados correctamente en Kubernetes."
       }
     }
   }
@@ -94,16 +98,24 @@ pipeline {
 
       sshagent (credentials: ['server-ssh-key']) {
         sh '''
-        ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST bash -c "'
-          echo ⏪ Rollback en curso...
-          kubectl rollout undo deployment/$BACKEND_DEPLOYMENT -n $NAMESPACE || echo ⚠️ No se pudo hacer rollback
-          kubectl rollout status deployment/$BACKEND_DEPLOYMENT -n $NAMESPACE || true
-        '"
+        ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST bash -c "''
+          echo ⏪ Iniciando rollback completo en namespace $NAMESPACE...
+
+          for dep in backend frontend ingress mysql; do
+            echo 🔄 Rollback de $dep...
+            if kubectl get deployment $dep -n $NAMESPACE > /dev/null 2>&1; then
+              kubectl rollout undo deployment/$dep -n $NAMESPACE || echo ⚠️ Fallo rollback $dep
+              kubectl rollout status deployment/$dep -n $NAMESPACE || true
+            else
+              echo ⚠️ Deployment $dep no existe en $NAMESPACE
+            fi
+          done
+        ''"
         '''
       }
     }
     success {
-      echo "✅ Todo fue bien. No se necesitó rollback."
+      echo "✅ Despliegue exitoso. No fue necesario hacer rollback."
     }
   }
 }
