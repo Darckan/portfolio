@@ -11,7 +11,7 @@ import { TestModule } from './test/test.module';
       host: process.env.DB_HOST ?? 'mysql',
       port: 3306,
       username: process.env.DB_USER ?? 'root',
-      password: process.env.DB_PASSWORD ?? 'cGFzc3dvcmQ=',
+      password: process.env.DB_PASSWORD ?? 'password',
       database: process.env.DB_NAME ?? 'test',
       autoLoadEntities: true,
       synchronize: true,
