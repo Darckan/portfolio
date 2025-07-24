@@ -3,4 +3,4 @@ kind: ConfigMap
 metadata:
   name: mysql-config
 data:
-  mysql-database: microplatform
+  mysql-database: test

@@ -1,6 +1,6 @@
 // app/page.tsx (o cualquier otro Server Component)
 async function getData() {
-  const res = await fetch('http://backend:3050/api/test', {
+  const res = await fetch('http://localhost/api/test', {
     cache: 'no-store', // 👈 evita cache para dev
   });
 

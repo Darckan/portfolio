@@ -18,6 +18,12 @@ spec:
           image: frontend:dev
           ports:
             - containerPort: 3000
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
           resources:
             requests:
               memory: "128Mi"
