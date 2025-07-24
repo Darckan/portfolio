@@ -78,6 +78,19 @@ pipeline {
             }
         }
 
+        stage('Stress Test') {
+            steps {
+                sshagent (credentials: ['server-ssh-key']) {
+                    sh '''
+                    ssh -o StrictHostKeyChecking=no user@$SSH_IP '
+                        wrk -t2 -c50 -d10s http://localhost/
+                    '
+                    '''
+                }
+            }
+        }
+
+
         stage('Rollback') {
             when {
                 expression { currentBuild.result == 'FAILURE' }
