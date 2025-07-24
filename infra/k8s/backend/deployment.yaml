@@ -23,12 +23,6 @@ spec:
                 name: backend-config
             - secretRef:
                 name: backend-secrets
-          livenessProbe:
-            httpGet:
-              path: /test
-              port: 3000
-            initialDelaySeconds: 10
-            periodSeconds: 10
           resources:
             requests:
               memory: "256Mi"
