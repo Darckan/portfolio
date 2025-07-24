@@ -10,7 +10,7 @@ pipeline {
     MAX_RETRIES = 10
     INTERVAL = 10
     // Puedes tener múltiples URLs separados por coma si lo deseas
-    HEALTHCHECK_URLS = 'http://localhost:3000/test,http://localhost' 
+    HEALTHCHECK_URLS = 'http://localhost/api/test,http://localhost' 
   }
 
   stages {
