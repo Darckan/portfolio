@@ -11,14 +11,14 @@ spec:
     - host: localhost
       http:
         paths:
-          - path: /api(/|$)(.*)
+          - path: /api
             pathType: Prefix
             backend:
               service:
                 name: backend
                 port:
                   number: 3000
-          - path: /(.*)
+          - path: /
             pathType: Prefix
             backend:
               service:
