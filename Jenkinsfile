@@ -1,121 +1,109 @@
 pipeline {
-    agent any
+  agent any
 
-    environment {
-        BACKUP_DIR = "/home/user/backups"
-        DB_PASS = credentials('mysql-root-pass')
-         SSH_IP = credentials('server-ip')
+  environment {
+    SSH_USER = 'user'
+    SSH_HOST = credentials('server-ip')
+    REMOTE_DIR = '/home/user/project'
+    HEALTHCHECK_URL = 'http://localhost/api/test'
+    CLUSTER_NAME = 'devops-cluster'
+    BACKEND_DEPLOYMENT = 'backend'
+    NAMESPACE = 'default'
+    MAX_RETRIES = 10
+    INTERVAL = 10
+  }
+
+  stages {
+    stage('Checkout') {
+      steps {
+        checkout scm
+      }
     }
 
-    stages {
-        stage('Checkout') {
-            steps {
-                checkout scm
-            }
+    stage('Deploy en servidor remoto') {
+      steps {
+        sshagent (credentials: ['server-ssh-key']) {
+          sh '''
+          echo "📦 Ejecutando build y despliegue remoto..."
+
+          ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST bash -c "'
+            cd $REMOTE_DIR
+
+            echo 🔨 Construyendo imágenes Docker...
+            docker build -t backend:dev ./backend
+            docker build -t frontend:dev ./frontend
+
+            echo 📦 Cargando imágenes a Kind...
+            kind load docker-image backend:dev --name $CLUSTER_NAME
+            kind load docker-image frontend:dev --name $CLUSTER_NAME
+
+            echo 📁 Aplicando manifiestos Kubernetes...
+            kubectl apply -f infra/k8s/namespace.yaml
+            kubectl apply -f infra/k8s/mysql/
+            kubectl apply -f infra/k8s/backend/
+            kubectl apply -f infra/k8s/frontend/
+            kubectl apply -f infra/k8s/ingress/
+          '"
+          '''
         }
-
-        stage('Backup Database') {
-            steps {
-                sshagent (credentials: ['server-ssh-key']) {
-                    sh '''
-                    echo "📦 Backing up database..."
-                    ssh -o StrictHostKeyChecking=no user@$SSH_IP "
-                        mkdir -p $BACKUP_DIR &&
-                        docker exec mysql mysqldump -uroot -p$DB_PASS --all-databases > $BACKUP_DIR/backup-$(date +%F-%H%M).sql
-                    "
-                    '''
-                }
-            }
-        }
-
-        stage('Deploy to Green') {
-            steps {
-                sshagent (credentials: ['server-ssh-key']) {
-                    sh '''
-                    echo "🚀 Deploying to Green..."
-                    ssh -o StrictHostKeyChecking=no user@$SSH_IP '
-                        if [ ! -d /home/user/project-green ]; then
-                            git clone https://github.com/Darckan/portfolio.git /home/user/project-green
-                        fi
-                        cd /home/user/project-green &&
-                        git reset --hard &&
-                        git pull origin master &&
-                        docker-compose pull &&
-                        docker-compose up -p green -d --remove-orphans
-                    '
-                    '''
-                }
-            }
-        }
-
-        stage('Health Check') {
-            steps {
-                sshagent (credentials: ['server-ssh-key']) {
-                    script {
-                        def result = sh(script: """
-                            ssh -o StrictHostKeyChecking=no user@$SSH_IP \
-                            'curl -fsS http://localhost || exit 1'
-                        """, returnStatus: true)
-
-                        if (result != 0) {
-                            error("❌ Health check failed. Rolling back...")
-                        }
-                    }
-                }
-            }
-        }
-
-        stage('Switch Proxy') {
-            steps {
-                sshagent (credentials: ['server-ssh-key']) {
-                    sh '''
-                    echo "🔁 Switching NGINX proxy to Green..."
-                    ssh -o StrictHostKeyChecking=no user@$SSH_IP '
-                        docker exec nginx sh -c "sed s/blue/green/g /etc/nginx/nginx.conf && nginx -s reload"
-                    '
-                    '''
-                }
-            }
-        }
-
-        stage('Stress Test') {
-            steps {
-                sshagent (credentials: ['server-ssh-key']) {
-                    sh '''
-                    ssh -o StrictHostKeyChecking=no user@$SSH_IP '
-                        wrk -t2 -c50 -d10s http://localhost/
-                    '
-                    '''
-                }
-            }
-        }
-
-
-        stage('Rollback') {
-            when {
-                expression { currentBuild.result == 'FAILURE' }
-            }
-            steps {
-                sshagent (credentials: ['server-ssh-key']) {
-                    sh '''
-                    echo "⏪ Rolling back to Blue..."
-                    ssh -o StrictHostKeyChecking=no user@$SSH_IP '
-                        cd /home/user/project-blue &&
-                        docker-compose up -p blue -d --remove-orphans &&
-                        docker exec nginx sh -c "sed s/green/blue/g /etc/nginx/nginx.conf && nginx -s reload"
-                    '
-                    '''
-                }
-            }
-        }
+      }
     }
 
-    post {
-        success {
-            echo "✅ Deployment successful. Green environment is live."
+    stage('Healthcheck remoto') {
+      steps {
+        sshagent (credentials: ['server-ssh-key']) {
+          script {
+            echo "🔍 Verificando salud del backend remoto..."
+
+            def success = false
+
+            for (int i = 0; i < MAX_RETRIES.toInteger(); i++) {
+              def code = sh(
+                script: """ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST "curl -sf -o /dev/null -w '%{http_code}' $HEALTHCHECK_URL" """,
+                returnStdout: true
+              ).trim()
+
+              if (code == '200') {
+                echo "✅ Backend saludable (HTTP 200)"
+                success = true
+                break
+              } else {
+                echo "❌ Intento #$i: HTTP $code"
+                sleep(INTERVAL.toInteger())
+              }
+            }
+
+            if (!success) {
+              error("⛔ Healthcheck fallido. Rollback necesario.")
+            }
+          }
         }
-        failure {
-            echo "⚠️ Deployment failed. Rollback attempted."
-        }
+      }
     }
+
+    stage('Finalizar') {
+      steps {
+        echo "🎉 Despliegue en Kubernetes verificado correctamente."
+      }
+    }
+  }
+
+  post {
+    failure {
+      echo "🚨 Fallo detectado. Ejecutando rollback remoto..."
+
+      sshagent (credentials: ['server-ssh-key']) {
+        sh '''
+        ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST bash -c "'
+          echo ⏪ Rollback en curso...
+          kubectl rollout undo deployment/$BACKEND_DEPLOYMENT -n $NAMESPACE || echo ⚠️ No se pudo hacer rollback
+          kubectl rollout status deployment/$BACKEND_DEPLOYMENT -n $NAMESPACE || true
+        '"
+        '''
+      }
+    }
+    success {
+      echo "✅ Todo fue bien. No se necesitó rollback."
+    }
+  }
 }
