@@ -4,6 +4,8 @@ async function getData() {
     cache: 'no-store', // 👈 evita cache para dev
   });
 
+  console.log(res.url);
+
   if (!res.ok) {
     throw new Error('Failed to fetch');
   }
