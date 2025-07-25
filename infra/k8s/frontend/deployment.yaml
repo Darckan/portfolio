@@ -18,6 +18,9 @@ spec:
           image: frontend:dev
           ports:
             - containerPort: 3000
+          envFrom:
+            - configMapRef:
+                name: frontend-config
           resources:
             requests:
               memory: "128Mi"
