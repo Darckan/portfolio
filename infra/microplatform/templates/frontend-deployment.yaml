@@ -2,9 +2,9 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: frontend
-  namespace: { { .Values.namespace } }
+  namespace: {{ .Values.namespace }}
 spec:
-  replicas: { { .Values.frontend.replicaCount } }
+  replicas: {{ .Values.frontend.replicaCount }}
   selector:
     matchLabels:
       app: frontend
@@ -15,16 +15,18 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: { { .Values.frontend.image.repository } }:{ { .Values.frontend.image.tag } }
-          imagePullPolicy: { { .Values.frontend.image.pullPolicy } }
+          image: {{ .Values.frontend.image.repository }}:{{ .Values.frontend.image.tag }}
+          imagePullPolicy: {{ .Values.frontend.image.pullPolicy }}
           ports:
-            - containerPort: { { .Values.frontend.containerPort } }
+            - containerPort: {{ .Values.frontend.containerPort }}
           env:
-            {% for k, v in .Values.frontend.env.items() %}
-            - name: { '{' } k { '}' }
-              value: { '{' } v { '}' }
-            {% endfor %}
+            {{- range $key, $val := .Values.frontend.env }}
+            - name: {{ $key }}
+              value: {{ $val | quote }}
+            {{- end }}
           resources:
-            { '{ toYaml .Values.%s.resources | nindent 12 }' % name }
-          livenessProbe: { '{ toYaml .Values.%s.livenessProbe | nindent 12 }' % name }
-          readinessProbe: { '{ toYaml .Values.%s.readinessProbe | nindent 12 }' % name }
+            {{ toYaml .Values.frontend.resources | nindent 12 }}
+          livenessProbe:
+            {{ toYaml .Values.frontend.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{ toYaml .Values.frontend.readinessProbe | nindent 12 }}

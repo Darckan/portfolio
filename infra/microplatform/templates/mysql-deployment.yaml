@@ -2,9 +2,9 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: mysql
-  namespace: { { .Values.namespace } }
+  namespace: {{ .Values.namespace }}
 spec:
-  replicas: { { .Values.mysql.replicaCount } }
+  replicas: {{ .Values.mysql.replicaCount }}
   selector:
     matchLabels:
       app: mysql
@@ -15,16 +15,22 @@ spec:
     spec:
       containers:
         - name: mysql
-          image: { { .Values.mysql.image.repository } }:{ { .Values.mysql.image.tag } }
-          imagePullPolicy: { { .Values.mysql.image.pullPolicy } }
+          image: {{ .Values.mysql.image.repository }}:{{ .Values.mysql.image.tag }}
+          imagePullPolicy: {{ .Values.mysql.image.pullPolicy }}
           ports:
-            - containerPort: { { .Values.mysql.containerPort } }
+            - containerPort: {{ .Values.mysql.containerPort }}
           env:
-            {% for k, v in .Values.mysql.env.items() %}
-            - name: { '{' } k { '}' }
-              value: { '{' } v { '}' }
-            {% endfor %}
+            {{- range $key, $val := .Values.mysql.env }}
+            - name: {{ $key }}
+              valueFrom: {{ toYaml $val | nindent 16 }}
+            {{- end }}
           resources:
-            { '{ toYaml .Values.%s.resources | nindent 12 }' % name }
-          livenessProbe: { '{ toYaml .Values.%s.livenessProbe | nindent 12 }' % name }
-          readinessProbe: { '{ toYaml .Values.%s.readinessProbe | nindent 12 }' % name }
+            {{ toYaml .Values.mysql.resources | nindent 12 }}
+          livenessProbe:
+            {{ toYaml .Values.mysql.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{ toYaml .Values.mysql.readinessProbe | nindent 12 }}
+          volumeMounts:
+            {{ toYaml .Values.mysql.volumeMounts | nindent 12 }}
+      volumes:
+        {{ toYaml .Values.mysql.volumes | nindent 8 }}

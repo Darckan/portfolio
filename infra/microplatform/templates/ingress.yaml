@@ -4,7 +4,7 @@ metadata:
   name: microplatform-ingress
   namespace: {{ .Values.namespace }}
   annotations:
-    {{- toYaml .Values.ingress.annotations | nindent 4 }}
+    {{ toYaml .Values.ingress.annotations | nindent 4 }}
 spec:
   ingressClassName: {{ .Values.ingress.className }}
   rules:
