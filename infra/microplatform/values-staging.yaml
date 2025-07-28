@@ -71,6 +71,8 @@ ingress:
       pathType: Prefix
       port: 80
 mysql:
+  config:
+    database: test
   auth:
     user: root
     password: password
