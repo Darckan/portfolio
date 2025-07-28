@@ -60,7 +60,7 @@ ingress:
   className: nginx
   enabled: true
   hosts:
-  - host: microplatform.local
+    host: ""
     paths:
     - backend: backend
       path: /api/
