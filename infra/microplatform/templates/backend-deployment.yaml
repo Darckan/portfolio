@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: { { .Values.namespace } }
+spec:
+  replicas: { { .Values.backend.replicaCount } }
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+        - name: backend
+          image: { { .Values.backend.image.repository } }:{ { .Values.backend.image.tag } }
+          imagePullPolicy: { { .Values.backend.image.pullPolicy } }
+          ports:
+            - containerPort: { { .Values.backend.containerPort } }
+          env:
+            {% for k, v in .Values.backend.env.items() %}
+            - name: { '{' } k { '}' }
+              value: { '{' } v { '}' }
+            {% endfor %}
+          resources:
+            { '{ toYaml .Values.%s.resources | nindent 12 }' % name }
+          livenessProbe: { '{ toYaml .Values.%s.livenessProbe | nindent 12 }' % name }
+          readinessProbe: { '{ toYaml .Values.%s.readinessProbe | nindent 12 }' % name }

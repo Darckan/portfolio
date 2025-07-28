@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql
+  namespace: { { .Values.namespace } }
+spec:
+  replicas: { { .Values.mysql.replicaCount } }
+  selector:
+    matchLabels:
+      app: mysql
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      containers:
+        - name: mysql
+          image: { { .Values.mysql.image.repository } }:{ { .Values.mysql.image.tag } }
+          imagePullPolicy: { { .Values.mysql.image.pullPolicy } }
+          ports:
+            - containerPort: { { .Values.mysql.containerPort } }
+          env:
+            {% for k, v in .Values.mysql.env.items() %}
+            - name: { '{' } k { '}' }
+              value: { '{' } v { '}' }
+            {% endfor %}
+          resources:
+            { '{ toYaml .Values.%s.resources | nindent 12 }' % name }
+          livenessProbe: { '{ toYaml .Values.%s.livenessProbe | nindent 12 }' % name }
+          readinessProbe: { '{ toYaml .Values.%s.readinessProbe | nindent 12 }' % name }
