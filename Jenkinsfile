@@ -121,18 +121,21 @@ pipeline {
   post {
     failure {
       echo "🧨 Falló algo. Iniciando rollback..."
+
       sshagent (credentials: ['server-ssh-key']) {
-        sh '''
-        ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST bash -c "'
-          for dep in backend frontend mysql; do
-            echo 🔄 Rollback de $dep en $ENVIRONMENT...
-            if kubectl get deployment $dep -n $ENVIRONMENT > /dev/null 2>&1; then
-              kubectl rollout undo deployment/$dep -n $ENVIRONMENT || echo ⚠️ Fallo rollback $dep
-              kubectl rollout status deployment/$dep -n $ENVIRONMENT --timeout=60s || true
-            fi
-          done
-        '"
-        '''
+        sh """
+          ssh -o StrictHostKeyChecking=no \$SSH_USER@\$SSH_HOST bash -c '
+            for dep in backend frontend mysql; do
+              echo 🔄 Rollback de \$dep en \$ENVIRONMENT...
+              if kubectl get deployment \$dep -n \$ENVIRONMENT > /dev/null 2>&1; then
+                kubectl rollout undo deployment/\$dep -n \$ENVIRONMENT || echo ⚠️ Fallo rollback \$dep
+                kubectl rollout status deployment/\$dep -n \$ENVIRONMENT --timeout=60s || true
+              else
+                echo ⚠️ Deployment \$dep no existe en \$ENVIRONMENT
+              fi
+            done
+          '
+        """
       }
     }
     success {
