@@ -9,8 +9,10 @@ pipeline {
     NAMESPACE = 'dev'
     MAX_RETRIES = 10
     INTERVAL = 10
-    // Puedes tener múltiples URLs separados por coma si lo deseas
-    HEALTHCHECK_URLS = 'http://localhost/api/test,http://localhost' 
+    HEALTHCHECK_URLS = 'http://localhost/api/test,http://localhost'
+    LOAD_TEST_URL = 'http://localhost'   // endpoint para stress test
+    LOAD_TEST_REQUESTS = 500
+    LOAD_TEST_CONCURRENCY = 50
   }
 
   stages {
@@ -26,7 +28,7 @@ pipeline {
           sh '''
           echo "📦 Ejecutando build y despliegue remoto..."
 
-          ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST bash -c "''
+          ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST bash -c "'
             set -e
             cd $REMOTE_DIR
 
@@ -44,40 +46,41 @@ pipeline {
             kubectl apply -f infra/k8s/backend/
             kubectl apply -f infra/k8s/frontend/
             kubectl apply -f infra/k8s/ingress/
-          ''"
+          '"
           '''
         }
       }
     }
 
-    stage('Healthcheck remoto') {
+    stage('Healthcheck remoto mejorado') {
       steps {
         sshagent (credentials: ['server-ssh-key']) {
           script {
-            echo "🔍 Verificando salud remota de todos los servicios..."
+            echo "🔍 Iniciando healthcheck HTTP para todos los servicios..."
             def urls = HEALTHCHECK_URLS.split(',')
 
             for (url in urls) {
               def success = false
+              echo "⏳ Probing ${url}"
 
               for (int i = 0; i < MAX_RETRIES.toInteger(); i++) {
-                def code = sh(
-                  script: """ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST "curl -sf -o /dev/null -w '%{http_code}' $url" """,
+                def output = sh(
+                  script: """ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST "curl -s -o /dev/null -w '%{http_code}' $url || echo 000" """,
                   returnStdout: true
                 ).trim()
 
-                if (code == '200') {
-                  echo "✅ Servicio saludable (${url})"
+                if (output == '200') {
+                  echo "✅ ${url} respondió 200 OK"
                   success = true
                   break
                 } else {
-                  echo "❌ Intento #$i: $url → HTTP $code"
+                  echo "⏱️ Intento ${i + 1}/${MAX_RETRIES}: HTTP $output para $url"
                   sleep(INTERVAL.toInteger())
                 }
               }
 
               if (!success) {
-                error("⛔ Healthcheck fallido para ${url}. Rollback necesario.")
+                error("❌ Healthcheck fallido para ${url}")
               }
             }
           }
@@ -85,9 +88,30 @@ pipeline {
       }
     }
 
+    stage('Test de carga') {
+      steps {
+        sshagent (credentials: ['server-ssh-key']) {
+          sh '''
+          echo "💥 Ejecutando test de carga con hey..."
+
+          ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST bash -c "'
+            if ! command -v hey >/dev/null 2>&1; then
+              echo '📦 Instalando hey...'
+              curl -L https://github.com/rakyll/hey/releases/download/v0.1.4/hey_linux_amd64 -o /usr/local/bin/hey
+              chmod +x /usr/local/bin/hey
+            fi
+
+            echo '🚀 Lanzando hey contra $LOAD_TEST_URL...'
+            hey -n $LOAD_TEST_REQUESTS -c $LOAD_TEST_CONCURRENCY $LOAD_TEST_URL
+          '"
+          '''
+        }
+      }
+    }
+
     stage('Finalizar') {
       steps {
-        echo "🎉 Todos los servicios verificados correctamente en Kubernetes."
+        echo "✅ Despliegue y validación completados correctamente."
       }
     }
   }
@@ -98,24 +122,25 @@ pipeline {
 
       sshagent (credentials: ['server-ssh-key']) {
         sh '''
-        ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST bash -c "''
+        ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST bash -c "'
           echo ⏪ Iniciando rollback completo en namespace $NAMESPACE...
 
           for dep in backend frontend ingress mysql; do
             echo 🔄 Rollback de $dep...
             if kubectl get deployment $dep -n $NAMESPACE > /dev/null 2>&1; then
               kubectl rollout undo deployment/$dep -n $NAMESPACE || echo ⚠️ Fallo rollback $dep
-              kubectl rollout status deployment/$dep -n $NAMESPACE || true
+              echo ⏳ Esperando a que $dep esté READY...
+              kubectl rollout status deployment/$dep -n $NAMESPACE --timeout=60s || true
             else
               echo ⚠️ Deployment $dep no existe en $NAMESPACE
             fi
           done
-        ''"
+        '"
         '''
       }
     }
     success {
-      echo "✅ Despliegue exitoso. No fue necesario hacer rollback."
+      echo "🎯 Todo OK. Jenkins finalizó correctamente."
     }
   }
 }
