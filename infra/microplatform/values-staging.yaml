@@ -7,8 +7,18 @@ backend:
     pullPolicy: IfNotPresent
     repository: backend
     tag: staging
-  livenessProbe: {}
-  readinessProbe: {}
+  livenessProbe:
+    httpGet:
+      path: /test
+      port: 3000
+    initialDelaySeconds: 5
+    periodSeconds: 10
+  readinessProbe:
+    httpGet:
+      path: /test
+      port: 3000
+    initialDelaySeconds: 5
+    periodSeconds: 10
   replicaCount: 1
   resources:
     limits:
@@ -25,8 +35,18 @@ frontend:
     pullPolicy: IfNotPresent
     repository: frontend
     tag: staging
-  livenessProbe: {}
-  readinessProbe: {}
+  livenessProbe:
+    httpGet:
+      path: /
+      port: 3000
+    initialDelaySeconds: 5
+    periodSeconds: 10
+  readinessProbe:
+    httpGet:
+      path: /
+      port: 3000
+    initialDelaySeconds: 5
+    periodSeconds: 10
   replicaCount: 1
   resources:
     limits:
@@ -73,8 +93,16 @@ mysql:
     pullPolicy: IfNotPresent
     repository: mysql
     tag: '8.0'
-  livenessProbe: {}
-  readinessProbe: {}
+  livenessProbe:
+    tcpSocket:
+      port: 3306
+    initialDelaySeconds: 5
+    periodSeconds: 10
+  readinessProbe:
+    tcpSocket:
+      port: 3306
+    initialDelaySeconds: 5
+    periodSeconds: 10
   replicaCount: 1
   resources:
     limits:
