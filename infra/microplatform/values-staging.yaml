@@ -74,8 +74,8 @@ mysql:
   config:
     database: test
   auth:
-    user: root
-    password: password
+    user: dev
+    password: devpassword
     rootPassword: password
   storage:
     size: 1Gi
