@@ -71,6 +71,10 @@ ingress:
       pathType: Prefix
       port: 80
 mysql:
+  auth:
+    user: root
+    password: password
+    rootPassword: password
   storage:
     size: 1Gi
     accessMode: ReadWriteOnce

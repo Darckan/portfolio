@@ -71,6 +71,10 @@ ingress:
       pathType: Prefix
       port: 80
 mysql:
+  auth:
+    user: root
+    password: password
+    rootPassword: password
   containerPort: 3306
   env:
     MYSQL_DATABASE:
