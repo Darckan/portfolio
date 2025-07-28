@@ -2,6 +2,9 @@ backend:
   containerPort: 3000
   env:
     DB_HOST: mysql
+    DB_USER: root
+    DB_PASSWORD: password
+    DB_NAME: test
     NODE_ENV: production
   image:
     pullPolicy: IfNotPresent
@@ -9,13 +12,13 @@ backend:
     tag: staging
   livenessProbe:
     httpGet:
-      path: /test
+      path: /api/test
       port: 3000
     initialDelaySeconds: 5
     periodSeconds: 10
   readinessProbe:
     httpGet:
-      path: /test
+      path: /api/test
       port: 3000
     initialDelaySeconds: 5
     periodSeconds: 10
@@ -30,7 +33,7 @@ backend:
 frontend:
   containerPort: 3000
   env:
-    NEXT_PUBLIC_API_URL: http://backend.staging.svc.cluster.local:3000
+    NEXT_PUBLIC_API_URL: backend.staging.svc.cluster.local:3000
   image:
     pullPolicy: IfNotPresent
     repository: frontend
