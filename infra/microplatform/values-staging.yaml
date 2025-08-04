@@ -33,7 +33,7 @@ backend:
 frontend:
   containerPort: 3000
   env:
-    NEXT_PUBLIC_API_URL: backend.staging.svc.cluster.local:3000
+    NEXT_PUBLIC_API_URL: http://backend.staging.svc.cluster.local:3000
   image:
     pullPolicy: IfNotPresent
     repository: frontend

@@ -10,7 +10,7 @@ module.exports = {
       {
         source: '/api/:path*',
         destination:
-          process.env.API_URL ?? 'http://{process.env.NEXT_PUBLIC_API_URL}/api/:path*',
+          process.env.NEXT_PUBLIC_API_URL ?? '{process.env.NEXT_PUBLIC_API_URL}/api/:path*',
       },
     ];
   },
