@@ -31,8 +31,8 @@ backend:
       cpu: 250m
       memory: 256Mi
 frontend:
+  port: 80
   containerPort: 3000
-  targetPort: 80
   env:
     NEXT_PUBLIC_API_URL: http://backend.staging.svc.cluster.local:3000
   image:
