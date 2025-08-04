@@ -1,6 +1,6 @@
 // app/page.tsx (o cualquier otro Server Component)
 async function getData() {
-  const res = await fetch('http://192.168.1.176/api/test', {
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/test`, {
     cache: 'no-store', // 👈 evita cache para dev
   });
 
@@ -17,8 +17,11 @@ export default async function Home() {
   let data: any;
   try {
     data = await getData();
-    console.log(data);
+
   } catch (err) {
+
+    console.log(`${process.env.NEXT_PUBLIC_API_URL}/api/test`);
+
     return (
       <main>
         <h1>Test conexión API:</h1>
