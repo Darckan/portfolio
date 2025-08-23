@@ -1,0 +1,70 @@
+# Namespace donde se instalará Prometheus + Grafana
+global:
+  rbac:
+    create: true
+
+# Configuración de Prometheus
+prometheus:
+  prometheusSpec:
+    scrapeInterval: "15s"                # Intervalo de recolección de métricas
+    retention: "15d"                     # Retención de métricas
+    serviceMonitorSelectorNilUsesHelmValues: false
+    serviceMonitorNamespaceSelector: {}  # Detectar monitores en todos los namespaces
+    serviceMonitorSelector: {}
+    podMonitorSelector: {}
+    podMonitorNamespaceSelector: {}      # Detectar pods en todos los namespaces
+    resources:
+      requests:
+        memory: 512Mi
+        cpu: 250m
+      limits:
+        memory: 1Gi
+        cpu: 500m
+
+# Configuración de Grafana
+grafana:
+  adminUser: admin
+  adminPassword: SuperSecurePassword123  # Cambia esto antes de instalar
+  service:
+    type: NodePort                       # Para acceder fácilmente desde fuera (puedes usar LoadBalancer)
+    nodePort: 32000
+  defaultDashboardsEnabled: true
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      searchNamespace: ALL
+    datasources:
+      enabled: true
+  resources:
+    requests:
+      memory: 256Mi
+      cpu: 250m
+    limits:
+      memory: 512Mi
+      cpu: 500m
+
+# Exporters
+nodeExporter:
+  enabled: true
+  resources:
+    requests:
+      cpu: 50m
+      memory: 50Mi
+    limits:
+      cpu: 100m
+      memory: 100Mi
+
+kubeStateMetrics:
+  enabled: true
+  resources:
+    requests:
+      cpu: 50m
+      memory: 50Mi
+    limits:
+      cpu: 100m
+      memory: 100Mi
+
+# Alertmanager (puedes deshabilitar si no quieres alertas todavía)
+alertmanager:
+  enabled: false

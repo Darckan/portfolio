@@ -3,6 +3,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { TestModule } from './test/test.module';
+import { PrometheusModule } from '@willsoto/nestjs-prometheus';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { TestModule } from './test/test.module';
       synchronize: true,
     }),
     TestModule,
+    PrometheusModule.register(),
   ],
   controllers: [AppController],
   providers: [AppService],

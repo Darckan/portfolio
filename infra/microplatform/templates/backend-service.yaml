@@ -3,6 +3,12 @@ kind: Service
 metadata:
   name: backend
   namespace: {{ .Values.namespace }}
+  labels:
+    app: backend
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "3000"
+    prometheus.io/path: "/metrics"
 spec:
   selector:
     app: backend
@@ -11,3 +17,4 @@ spec:
       port: {{ .Values.backend.containerPort }}
       targetPort: {{ .Values.backend.containerPort }}
   type: ClusterIP
+
