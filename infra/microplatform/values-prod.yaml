@@ -71,10 +71,16 @@ ingress:
       pathType: Prefix
       port: 80
 mysql:
+  config:
+    database: test
   auth:
-    user: root
-    password: password
+    user: dev
+    password: devpassword
     rootPassword: password
+  storage:
+    size: 1Gi
+    accessMode: ReadWriteOnce
+    path: /mnt/data/mysql
   containerPort: 3306
   env:
     MYSQL_DATABASE:
@@ -116,10 +122,10 @@ mysql:
       cpu: 500m
       memory: 512Mi
   volumeMounts:
-  - mountPath: /var/lib/mysql
-    name: mysql-storage
+    - mountPath: /var/lib/mysql
+      name: mysql-storage
   volumes:
-  - name: mysql-storage
-    persistentVolumeClaim:
-      claimName: mysql-pvc
+    - name: mysql-storage
+      persistentVolumeClaim:
+        claimName: mysql-pvc
 namespace: prod
