@@ -6,7 +6,7 @@ backend:
   image:
     pullPolicy: IfNotPresent
     repository: backend
-    tag: latest
+    tag: prod
   livenessProbe:
     httpGet:
       path: /test
@@ -34,7 +34,7 @@ frontend:
   image:
     pullPolicy: IfNotPresent
     repository: frontend
-    tag: latest
+    tag: prod
   livenessProbe:
     httpGet:
       path: /
