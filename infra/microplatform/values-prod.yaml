@@ -127,5 +127,5 @@ mysql:
   volumes:
     - name: mysql-storage
       persistentVolumeClaim:
-        claimName: mysql-pvc
+        claimName: mysql-pvc-prod
 namespace: prod
