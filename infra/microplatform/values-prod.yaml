@@ -19,7 +19,7 @@ backend:
       port: 3000
     initialDelaySeconds: 5
     periodSeconds: 10
-  replicaCount: 3
+  replicaCount: 1
   resources:
     limits:
       cpu: '1'
@@ -48,7 +48,7 @@ frontend:
       port: 3000
     initialDelaySeconds: 5
     periodSeconds: 10
-  replicaCount: 3
+  replicaCount: 1
   resources:
     limits:
       cpu: 500m
