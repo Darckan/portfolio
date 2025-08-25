@@ -7,7 +7,7 @@ pipeline {
 
   environment {
     SSH_USER = 'user'
-    SSH_HOST = credentials('server-ip') // debe ser un String Credential con la IP o hostname
+    SSH_HOST = credentials('server-ip')
     REMOTE_DIR = '/home/user/project'
     CHART_NAME = 'microplatform'
     MAX_RETRIES = 10
@@ -28,10 +28,10 @@ pipeline {
     stage('Despliegue remoto con Helm') {
       steps {
         sshagent (credentials: ['server-ssh-key']) {
-          sh """
-          echo '🚀 Desplegando entorno ${ENVIRONMENT}...'
+          sh '''
+          echo "🚀 Desplegando entorno ${ENVIRONMENT}..."
 
-          ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST <<'EOF'
+          ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST bash -c "'
             set -e
             cd $REMOTE_DIR
 
@@ -39,28 +39,28 @@ pipeline {
             git reset --hard
             git pull origin master
 
-            echo '🔨 Build imágenes Docker...'
+            echo 🔨 Build imágenes Docker...
             docker build -t backend:${ENVIRONMENT} ./backend
             docker build -t frontend:${ENVIRONMENT} ./frontend
 
-            echo '📦 Cargando imágenes a Kind...'
+            echo 📦 Cargando imágenes a Kind...
             kind load docker-image backend:${ENVIRONMENT} --name devops-cluster
             kind load docker-image frontend:${ENVIRONMENT} --name devops-cluster
 
-            echo '📁 Desplegando con Helm...'
+            echo 📁 Desplegando con Helm...
             cd infra/microplatform
 
             kubectl get ns ${ENVIRONMENT} || kubectl create ns ${ENVIRONMENT}
 
             if helm status ${CHART_NAME}-${ENVIRONMENT} -n ${ENVIRONMENT} > /dev/null 2>&1; then
-              echo '🔄 Actualizando release...'
+              echo "🔄 Actualizando release..."
               helm upgrade ${CHART_NAME}-${ENVIRONMENT} . -n ${ENVIRONMENT} -f values-${ENVIRONMENT}.yaml
             else
-              echo '🚀 Instalando nuevo release...'
+              echo "🚀 Instalando nuevo release..."
               helm install ${CHART_NAME}-${ENVIRONMENT} . -n ${ENVIRONMENT} -f values-${ENVIRONMENT}.yaml
             fi
-          EOF
-          """
+          '"
+          '''
         }
       }
     }
@@ -100,17 +100,17 @@ pipeline {
     stage('Test de carga') {
       steps {
         sshagent (credentials: ['server-ssh-key']) {
-          sh """
-          ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST <<'EOF'
+          sh '''
+          ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST bash -c "'
             if ! command -v hey >/dev/null 2>&1; then
-              echo '📦 Instalando hey...'
+              echo 📦 Instalando hey...
               curl -L https://github.com/rakyll/hey/releases/download/v0.1.4/hey_linux_amd64 -o /usr/local/bin/hey
               chmod +x /usr/local/bin/hey
             fi
-            echo '💥 Ejecutando hey...'
+            echo 💥 Ejecutando hey...
             hey -n $LOAD_TEST_REQUESTS -c $LOAD_TEST_CONCURRENCY $LOAD_TEST_URL
-          EOF
-          """
+          '"
+          '''
         }
       }
     }
@@ -128,17 +128,17 @@ pipeline {
 
       sshagent (credentials: ['server-ssh-key']) {
         sh """
-        ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST <<'EOF'
-          for dep in backend frontend mysql; do
-            echo "🔄 Rollback de $dep en $ENVIRONMENT..."
-            if kubectl get deployment $dep -n $ENVIRONMENT > /dev/null 2>&1; then
-              kubectl rollout undo deployment/$dep -n $ENVIRONMENT || echo "⚠️ Fallo rollback $dep"
-              kubectl rollout status deployment/$dep -n $ENVIRONMENT --timeout=60s || true
-            else
-              echo "⚠️ Deployment $dep no existe en $ENVIRONMENT"
-            fi
-          done
-        EOF
+          ssh -o StrictHostKeyChecking=no \$SSH_USER@\$SSH_HOST bash -c '
+            for dep in backend frontend mysql; do
+              echo 🔄 Rollback de \$dep en \$ENVIRONMENT...
+              if kubectl get deployment \$dep -n \$ENVIRONMENT > /dev/null 2>&1; then
+                kubectl rollout undo deployment/\$dep -n \$ENVIRONMENT || echo ⚠️ Fallo rollback \$dep
+                kubectl rollout status deployment/\$dep -n \$ENVIRONMENT --timeout=60s || true
+              else
+                echo ⚠️ Deployment \$dep no existe en \$ENVIRONMENT
+              fi
+            done
+          '
         """
       }
     }
