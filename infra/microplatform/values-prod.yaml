@@ -60,16 +60,16 @@ ingress:
   className: nginx
   enabled: true
   hosts:
-    host: ""
-    paths:
-    - backend: backend
-      path: /api/
-      pathType: Prefix
-      port: 3000
-    - backend: frontend
-      path: /
-      pathType: Prefix
-      port: 80
+    - host: ""
+      paths:
+      - backend: backend
+        path: /api/
+        pathType: Prefix
+        port: 3000
+      - backend: frontend
+        path: /
+        pathType: Prefix
+        port: 80
 mysql:
   config:
     database: test
